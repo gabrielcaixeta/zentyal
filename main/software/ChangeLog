@@ -1,3 +1,9 @@
+5.0.1
+	+ Adataptions for commercial edition slides
+5.0
+	+ Use groupware metapackage instead of mail in installer
+	+ Include squid again in installer
+	+ Update version to 5.0
 4.2
 	+ Update version to 4.2
 4.1.1

@@ -31,7 +31,6 @@ use EBox::Gettext;
 use EBox::Global;
 use EBox::Menu::Item;
 use EBox::Menu::Folder;
-use EBox::Objects;
 use EBox::Validate qw(:all);
 
 use EBox::Sudo;
@@ -43,7 +42,7 @@ use EBox::Dashboard::Section;
 use EBox::Dashboard::List;
 
 use Net::IP;
-use TryCatch::Lite;
+use TryCatch;
 use Perl6::Junction qw(any);
 use Text::DHCPLeases;
 use File::Slurp;
@@ -120,12 +119,12 @@ sub initialSetup
     # Create default services, rules and conf dir
     # only if installing the first time
     unless ($version) {
-        my $services = $self->global()->modInstance('services');
+        my $network = $self->global()->modInstance('network');
         my $firewall = $self->global()->modInstance('firewall');
 
         my $serviceName = 'tftp';
-        unless ($services->serviceExists(name => $serviceName)) {
-            $services->addMultipleService(
+        unless ($network->serviceExists(name => $serviceName)) {
+            $network->addMultipleService(
                 'name' => $serviceName,
                 'printableName' => 'TFTP',
                 'description' => __('Trivial File Transfer Protocol'),
@@ -138,8 +137,8 @@ sub initialSetup
         }
 
         $serviceName = 'dhcp';
-        unless ($services->serviceExists(name => $serviceName)) {
-            $services->addMultipleService(
+        unless ($network->serviceExists(name => $serviceName)) {
+            $network->addMultipleService(
                 'name' => $serviceName,
                 'printableName' => 'DHCP',
                 'description' => __('Dynamic Host Configuration Protocol'),
@@ -219,22 +218,12 @@ sub _daemons
             'name' => DHCP_SERVICE,
             'precondition' => $preSub
         },
-        {
-            'name' => TFTP_SERVICE,
-            'precondition' => $preSub
-        }
+       # FIXME
+       # {
+       #     'name' => TFTP_SERVICE,
+       #     'precondition' => $preSub
+       # }
     ];
-}
-
-# Method: _daemonsToDisable
-#
-# Overrides:
-#
-#   <EBox::Module::Service::_daemonsToDisable>
-#
-sub _daemonsToDisable
-{
-    return [ { 'name' => 'isc-dhcp-server', 'type' => 'init.d' } ];
 }
 
 sub _dhcpDaemonNeeded
@@ -256,7 +245,8 @@ sub _setConf
 {
     my ($self) = @_;
     $self->_setDHCPConf();
-    $self->_setTFTPDConf();
+    # FIXME
+    #$self->_setTFTPDConf();
 }
 
 # Method: menu

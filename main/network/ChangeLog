@@ -1,3 +1,21 @@
+5.0.6
+	+ Restore PPPoE, bridged mode, multigateway and failover from Zentyal 4.0
+5.0.5
+	+ Restore bonding support from Zentyal 4.0
+5.0.4
+	+ Migrate services and objects redis data when upgrading from 4.X
+5.0.3
+	+ Provide transitional dummy packages for services and objects
+	+ Fix regression enforcing 127.0.0.1 as nameserver in ADC mode
+5.0.2
+	+ Make sure 127.0.0.1 is always used as nameserver with zentyal-samba
+5.0.1
+	+ Fix DHCP hooks
+	+ Fix module restart in postinst
+5.0
+	+ Integrate objects and services modules inside network
+	+ Use Net::Interface instead of IO::Interface::Simple, which
+	  seems buggy with new interface naming
 4.2.2
 	+ Fix regression in initial modules enable after last change
 4.2.1

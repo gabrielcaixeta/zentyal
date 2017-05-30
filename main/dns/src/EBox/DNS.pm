@@ -22,7 +22,6 @@ use base qw( EBox::Module::Service
              EBox::SysInfo::Observer
              EBox::NetworkObserver );
 
-use EBox::Objects;
 use EBox::Gettext;
 use EBox::Config;
 use EBox::Service;
@@ -42,7 +41,7 @@ use EBox::Exceptions::UnwillingToPerform;
 use EBox::Exceptions::DataNotFound;
 use EBox::Exceptions::MissingArgument;
 
-use TryCatch::Lite;
+use TryCatch;
 use File::Temp;
 use File::Slurp;
 use Fcntl qw(:seek);
@@ -564,7 +563,7 @@ sub initialSetup
 
     # Create default rules and services only if installing the first time
     unless ($version) {
-        my $services = EBox::Global->modInstance('services');
+        my $services = EBox::Global->modInstance('network');
 
         my $serviceName = 'dns';
         unless ($services->serviceExists(name => $serviceName)) {
@@ -612,22 +611,7 @@ sub _daemons
 {
     return [
         {
-            'name' => 'bind9',
-            'type' => 'init.d'
-        }
-    ];
-}
-
-# Method: _daemonsToDisable
-#
-#  Overrides <EBox::Module::Service::_daemonsToDisable>
-#
-sub _daemonsToDisable
-{
-    return [
-        {
-            'name' => 'bind9',
-            'type' => 'init.d'
+            'name' => 'bind9'
         }
     ];
 }
@@ -640,9 +624,6 @@ sub _preSetConf
     my ($self) = @_;
 
     my $runResolvConf = 1;
-    if ($self->global->modExists('samba')) {
-        my $usersModule = $self->global->modInstance('samba');
-    }
     my $array = [];
     push (@{$array}, runResolvConf => $runResolvConf);
     $self->writeConfFile(BIND9DEFAULTFILE, 'dns/bind9.mas', $array,
@@ -918,12 +899,26 @@ sub _postServiceHook
 {
     my ($self, $enabled) = @_;
 
-    if ($enabled) {
+    my $samba = $self->global->modInstance('samba');
+    # TODO: separate regular nsupdateCmds with -l from dlz ones with -g
+    if ($enabled and defined($samba)) {
+        # Wait max of 5 seconds until named is listening
         my $nTry = 0;
         do {
             sleep(1);
-        } while ( $nTry < 5 and (not $self->_isNamedListening()));
-        if ( $nTry < 5 ) {
+        } while (($nTry < 5) and (not $self->_isPortListening(53)));
+        # Do nothing if Kerberos is not listening
+        if (($nTry < 5) and $self->_isPortListening(88)) {
+            my $keytabPath = EBox::Samba::SAMBA_DNS_KEYTAB();
+            my $hostname = $self->global()->modInstance('sysinfo')->hostName();
+            my $netbiosName = $samba->model('DomainSettings')->value('netbiosName');
+            foreach my $name ($hostname, $netbiosName, uc($netbiosName)) {
+                EBox::Sudo::silentRoot("samba-tool user list | grep ^dns-$name");
+                if ($? == 0) {
+                    EBox::Sudo::root("kinit -k -t $keytabPath dns-$name");
+                    last;
+                }
+            }
             foreach my $cmd (@{$self->{nsupdateCmds}}) {
                 EBox::Sudo::root($cmd);
                 my ($filename) = $cmd =~ m:\s(.*?)$:;
@@ -1524,21 +1519,21 @@ sub _launchNSupdate
 {
     my ($self, $fh) = @_;
 
-    my $cmd = NS_UPDATE_CMD . ' -l -t 10 ' . $fh->filename();
+    my $cmd = NS_UPDATE_CMD . ' -g -t 10 ' . $fh->filename();
     $self->{nsupdateCmds} = [] unless exists $self->{nsupdateCmds};
     push (@{$self->{nsupdateCmds}}, $cmd);
     $fh->unlink_on_destroy(0);
 }
 
-# Check if named is listening
-sub _isNamedListening
+# Check if port is listening
+sub _isPortListening
 {
-    my ($self) = @_;
+    my ($self, $port) = @_;
 
     my $sock = new IO::Socket::INET(PeerAddr => '127.0.0.1',
-                                    PeerPort => 53,
+                                    PeerPort => $port,
                                     Proto    => 'tcp');
-    if ( $sock ) {
+    if ($sock) {
         close($sock);
         return 1;
     } else {

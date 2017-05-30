@@ -44,7 +44,7 @@ use Net::LDAP::Control;
 use Net::LDAP::Entry;
 use Net::LDAP::Constant qw(LDAP_ALREADY_EXISTS LDAP_LOCAL_ERROR);
 use Date::Calc;
-use TryCatch::Lite;
+use TryCatch;
 
 use constant MAXUSERLENGTH  => 128;
 use constant MAXPWDLENGTH   => 512;
@@ -248,9 +248,6 @@ sub deleteObject
     EBox::Sudo::silentRoot("rm -rf '$path'");
 
     # TODO Remove this user from shares ACLs
-
-    # Remove from SSSd cache
-    EBox::Sudo::silentRoot("sss_cache -u '$samAccountName'");
 
     # Call super implementation
     $self->SUPER::deleteObject(@params);
@@ -486,22 +483,6 @@ sub create
     my $usersMod = EBox::Global->modInstance('samba');
     my $realm = $usersMod->kerberosRealm();
 
-    my $real_users = $usersMod->realUsers();
-
-    my $max_users = 0;
-    if (EBox::Global->modExists('remoteservices')) {
-        my $rs = EBox::Global->modInstance('remoteservices');
-        $max_users = $rs->maxUsers();
-    }
-
-    if ($max_users) {
-        if ( scalar(@{$real_users}) > $max_users ) {
-            throw EBox::Exceptions::External(
-                    __sx('Please note that the maximum number of users for your edition is {max} '
-                        . 'and you currently have {nUsers}',
-                        max => $max_users, nUsers => scalar(@{$real_users})));
-        }
-    }
     my $uidNumber = defined $args{uidNumber} ?
                             $args{uidNumber} :
                             $class->_newUserUidNumber($isSystemUser);
@@ -1089,12 +1070,6 @@ sub _domainUsersGidNumber
     my $ldap = $class->_ldap();
     my $group = $ldap->domainUsersGroup();
     return $group->gidNumber();
-}
-
-sub _loginShell
-{
-    my $usersMod = EBox::Global->modInstance('samba');
-    return $usersMod->model('PAM')->login_shellValue();
 }
 
 sub quotaAvailable

@@ -1,3 +1,45 @@
+zentyal-network (5.0.6) xenial; urgency=medium
+
+  * New upstream release
+
+ -- José A. Calvo <jacalvo@zentyal.com>  Mon, 10 Apr 2017 01:22:41 +0200
+
+zentyal-network (5.0.5) xenial; urgency=medium
+
+  * New upstream release
+
+ -- José A. Calvo <jacalvo@zentyal.com>  Mon, 13 Feb 2017 02:54:33 +0100
+
+zentyal-network (5.0.4) xenial; urgency=medium
+
+  * New upstream release
+
+ -- José A. Calvo <jacalvo@zentyal.com>  Wed, 25 Jan 2017 02:17:38 +0100
+
+zentyal-network (5.0.3) xenial; urgency=medium
+
+  * New upstream release
+
+ -- José A. Calvo <jacalvo@zentyal.com>  Sat, 07 Jan 2017 17:37:50 +0100
+
+zentyal-network (5.0.2) xenial; urgency=medium
+
+  * New upstream release
+
+ -- José A. Calvo <jacalvo@zentyal.com>  Mon, 12 Dec 2016 19:37:24 +0100
+
+zentyal-network (5.0.1) xenial; urgency=medium
+
+  * New upstream release
+
+ -- José A. Calvo <jacalvo@zentyal.com>  Fri, 02 Dec 2016 04:15:19 +0100
+
+zentyal-network (5.0) xenial; urgency=medium
+
+  * New upstream release
+
+ -- José A. Calvo <jacalvo@zentyal.com>  Wed, 20 Jul 2016 16:14:25 +0200
+
 zentyal-network (4.2.2) trusty; urgency=medium
 
   * New upstream release

@@ -42,7 +42,7 @@ use Net::LDAP::Util qw(ldap_explode_dn canonical_dn);
 use File::Temp qw( tempfile tempdir );
 use File::Slurp;
 use Time::HiRes;
-use TryCatch::Lite;
+use TryCatch;
 
 sub new
 {
@@ -330,10 +330,7 @@ sub provision
     # Check environment
     my $provisionIP = $self->checkEnvironment(2);
 
-    # Remove SSS caches
     my @cmds;
-    push (@cmds, 'rm -f /var/lib/sss/db/*');
-
     # Remove extracted keytab
     my $conf = EBox::Config::conf();
     my $keytab = "$conf/samba.keytab";
@@ -377,8 +374,10 @@ sub provision
         throw EBox::Exceptions::External(__x('The mode {mode} is not supported'), mode => $mode);
     }
 
-    # Disable expiration on administrator account
-    EBox::Sudo::root('samba-tool user setexpiry administrator --noexpiry');
+    # Necessary to allow GSS-TSIG DNS updates via nsupdate -g in dns module
+    my $netbiosName = $users->model('DomainSettings')->value('netbiosName');
+    EBox::Sudo::root("samba-tool group addmembers DnsAdmins dns-$netbiosName");
+
     # Clean cache
     EBox::Sudo::root('net cache flush');
 
@@ -512,7 +511,16 @@ sub provisionDC
 
     my $usersModule = EBox::Global->modInstance('samba');
     my $passwdFile;
+    my $dnsFile = undef;
     try {
+        # Set the domain DNS as the primary resolver.
+        # We need this to have kerberos working for dns updates via GSS-TSIG
+        EBox::debug("Setting local DNS server as the primary resolver");
+        $dnsFile = new File::Temp(TEMPLATE => 'resolvXXXXXX', DIR  => EBox::Config::tmp());
+        EBox::Sudo::root("cp /etc/resolvconf/interface-order $dnsFile",
+                         'echo zentyal.temp > /etc/resolvconf/interface-order',
+                         "echo 'nameserver 127.0.0.1' | resolvconf -a zentyal.temp");
+
         $usersModule->writeSambaConfig();
 
         my $sysinfo = EBox::Global->modInstance('sysinfo');
@@ -547,6 +555,11 @@ sub provisionDC
     } catch ($e) {
         if ($passwdFile) {
             unlink $passwdFile;
+        }
+        if (defined $dnsFile and -f $dnsFile) {
+            EBox::Sudo::root("cp $dnsFile /etc/resolvconf/interface-order",
+                             'resolvconf -d zentyal.temp');
+            unlink $dnsFile;
         }
         $self->setProvisioned(0);
         $self->setupKerberos();
@@ -598,6 +611,9 @@ sub provisionDC
         $self->setProvisioned(0);
         throw EBox::Exceptions::Internal($error);
     }
+
+    # Disable expiration on administrator account
+    EBox::Sudo::root('samba-tool user setexpiry administrator --noexpiry');
 }
 
 sub rootDseAttributes
@@ -1387,23 +1403,12 @@ sub provisionADC
         $self->setupKerberos();
         $self->setupDNS();
 
-        if (defined $dnsFile and -f $dnsFile) {
-            EBox::Sudo::root("cp $dnsFile /etc/resolvconf/interface-order",
-                             'resolvconf -d zentyal.temp');
-            unlink $dnsFile;
-        }
         if (defined $adminAccountPwdFile and -f $adminAccountPwdFile) {
             unlink $adminAccountPwdFile;
         }
         EBox::Sudo::rootWithoutException('kdestroy');
 
         $e->throw();
-    }
-    # Revert primary resolver changes
-    if (defined $dnsFile and -f $dnsFile) {
-        EBox::Sudo::root("cp $dnsFile /etc/resolvconf/interface-order",
-                         'resolvconf -d zentyal.temp');
-        unlink $dnsFile;
     }
     # Remove stashed password
     if (defined $adminAccountPwdFile and -f $adminAccountPwdFile) {

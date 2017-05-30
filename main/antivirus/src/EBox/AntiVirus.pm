@@ -82,30 +82,6 @@ sub _create
 
 # Group: Public methods
 
-# Method: menu
-#
-#       Add an entry to the menu with this module
-#
-# Overrides:
-#
-#       <EBox::Module::menu>
-#
-sub menu
-{
-    my ($self, $root) = @_;
-
-# TODO: replace model with dashboard widget?
-#    my $item = new EBox::Menu::Item('name' => 'AntiVirus',
-#                                    'icon' => 'antivirus',
-#                                    'text' => $self->printableName(),
-#                                    'separator' => 'Office',
-#                                    'order' => 580,
-#                                    'url' => 'AntiVirus/View/FreshclamStatus',
-#                                   );
-#
-#    $root->add($item);
-}
-
 # Method: enableService
 #
 #   Used to enable a service We have to verride this because squid needs a
@@ -218,22 +194,6 @@ sub localSocket
     return CLAMD_SOCKET;
 }
 
-# Method: _postSetConfHook
-#
-# Overrides:
-#
-#      <EBox::Module::Base::_postSetConfHook>
-#
-sub _postSetConfHook
-{
-    my ($self) = @_;
-
-    # Run Freshclam first time so it works right away
-    EBox::Sudo::silentRoot("/usr/bin/freshclam --quiet");
-
-    $self->SUPER::_postSetConfHook();
-}
-
 # Method: _setConf
 #
 # Overrides:
@@ -270,7 +230,7 @@ sub _setConf
     $self->writeConfFile(FRESHCLAM_CONF_FILE,
             "antivirus/freshclam.conf.mas", \@freshclamParams);
 
-    # Regenerate freshclam cron hourly script
+    # Regenerate freshclam cron daily script
     $self->writeConfFile(FRESHCLAM_CRON_FILE,
                          'antivirus/clamav-freshclam.cron.mas',
                          [ enabled => $self->isEnabled() ]);

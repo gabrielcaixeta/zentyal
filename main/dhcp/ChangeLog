@@ -1,4 +1,7 @@
 HEAD
+	+ Fix module restart in postinst
+5.0
+	+ Disable TFTP
 	+ Display unknown hostnames as 'Unknown' in leases widget instead
 	  of an empty string.
 4.2
